@@ -1,0 +1,211 @@
+﻿@page "/AddQuouts/{id}"
+@using MudBlazor;
+@inject Services.ItagsService TagsService
+@using Models
+@inject IJSRuntime JSRuntime
+@using Newtonsoft.Json;
+
+<body style="margin: 0 auto; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; display: grid; height: 100%; width: 40%; place-items: center; background: #f2f2f2;">
+    <div class="wrapper" style="width: 100%; background: #fff; border-radius: 15px; box-shadow: 0px 15px 20px rgba(0,0,0,0.1);">
+        <div class="title" style="font-size: 35px; font-weight: 600; text-align: center; line-height: 100px; color: #fff; user-select: none; border-radius: 15px 15px 0 0; background: linear-gradient(-135deg, #c850c0, #4158d0);">
+            Add Your Quotes
+        </div>
+        <form @onsubmit="SubmitForm" style="padding: 10px 30px 50px 30px;">
+            <!-- Author Input Field -->
+            <div class="field" style="height: 50px; width: 100%; margin-top: 50px; position: relative;">
+                <label id="AuthorLabel" for="Author" style="position: absolute; padding-bottom: 20px; left: 20px; color: black; font-weight: 400; font-size: 17px; pointer-events: none; transform: translateY(-50%); transition: opacity 0.3s;">Author Name</label>
+                <input type="text" @bind="@tags.Author" id="Author" style="margin-bottom: 50px;height: 100%; width: 100%; outline: none; font-size: 17px; padding-left: 20px; border: 1px solid lightgrey; border-radius: 25px;">
+            </div>
+
+            <!-- Dynamic Tag Input Fields -->
+            @foreach (var tagInput in tagInputs)
+            {
+                <div class="field" style="height: 50px; width: 100%; margin-top: 50px; position: relative;">
+                    <label id="@($"{tagInput.Id}")" for="tags" style="position: absolute; padding-bottom: 20px; left: 20px; color: black; font-weight: 400; font-size: 17px; pointer-events: none; transform: translateY(-50%); transition: opacity 0.3s;">Tags@($"{tagInput.Id}")</label>
+                    <input type="text" @bind="@tagInput.tags" id="@($"Tag_{tagInput.Id}")" style="margin-bottom: 50px;height: 100%; width: 100%; outline: none; font-size: 17px; padding-left: 20px; border: 1px solid lightgrey; border-radius: 25px;">
+                    <span @onclick="(Action)(() => RemoveTag(tagInput.Id))" class="oi oi-minus" style="position: absolute; top: 0; right: 20px; bottom: 0;  display: flex; align-items: center; justify-content: center; cursor: pointer;" aria-hidden="true"></span>
+                    
+                </div>
+            }
+
+            <!-- Plus icon to add new tag input field -->
+            <div class="field" style="height: 50px; width: 100%; margin-top: 20px; position: relative;">
+                <span @onclick="AddTag" class="oi oi-plus" style="position: absolute; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;" aria-hidden="true"> Add Tags</span>
+            </div>
+
+            <!-- Dynamic Quotes Input Fields -->
+            @foreach (var quotesInput in QuotesInputs)
+            {
+                <div class="field" style="height: 100px; width: 100%; margin-top: 50px; position: relative;">
+                    <label id="@($"{quotesInput.Id}")" for="tags" style="position: absolute;padding-bottom: 20px; left: 20px; color: black; font-weight: 400; font-size: 17px; pointer-events: none; transform: translateY(-50%); transition: opacity 0.3s;">Quotes@($"{quotesInput.Id}")</label>
+                    <textarea @bind="@quotesInput.quotes" id="@($"Tag_{quotesInput.Id}")" style="margin-bottom: 50px;height: 100%; width: 100%; outline: none; font-size: 17px; padding-left: 20px; border: 1px solid lightgrey; border-radius: 25px;resize: none;" rows="5"></textarea>
+                    <span @onclick="(Action)(() => RemoveTag(quotesInput.Id))" class="oi oi-minus" style="position: absolute; top: 0; right: 20px; bottom: 0;  display: flex; align-items: center; justify-content: center; cursor: pointer;" aria-hidden="true"></span>
+                </div>
+                
+            }
+
+            <!-- Plus icon to add new quote input field -->
+            <div class="field" style="height: 50px; width: 100%; margin-top: 20px; position: relative;">
+                <span @onclick="AddQuote" class="oi oi-plus" style="position: absolute; top: 0; right: 0; bottom: 0;  display: flex; align-items: center; justify-content: center; cursor: pointer;" aria-hidden="true"> Add Quotes</span>
+            </div>
+
+            <!-- Submit Button -->
+            @if (ID == "0")
+            {
+            <div style="display: flex;justify-content: center;">
+                <button type="submit" style="color: #fff; border: none; border-radius: 25px; margin-top: 50px; font-size: 20px; font-weight: 500; cursor: pointer; background: linear-gradient(-135deg, #c850c0, #4158d0);">Submit</button>
+            </div>
+            }
+            @if (ID != "0")
+            {
+                <div style="display: flex;justify-content: center;">
+                    <button type="submit" style="color: #fff; border: none; border-radius: 25px; margin-top: 50px; font-size: 20px; font-weight: 500; cursor: pointer; background: linear-gradient(-135deg, #c850c0, #4158d0);">Update</button>
+                </div>
+            }
+        </form>
+    </div>
+</body>
+
+@code {
+
+    List<Tags> tagSelect = new List<Tags>();
+    Tags tags = new Tags();
+    List<TagInputModel> tagInputs = new List<TagInputModel>();
+    List<QuotesInputModel> QuotesInputs = new List<QuotesInputModel>();
+    [Parameter]
+    public string ID { get; set; }
+    public string TagsStatus { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        tagSelect = await TagsService.GetAllTags();
+
+
+        if (!string.IsNullOrEmpty(ID))
+        {
+            int tagId = int.Parse(ID);
+            if (tagId==0)
+            {
+                tagInputs.Add(new TagInputModel { Id = 1 });
+                QuotesInputs.Add(new QuotesInputModel { Id = 1 });
+            }
+            else
+            {
+
+                // Retrieve tag information based on tagId and populate the fields
+                var selectRecord = tagSelect.Where(i => i.Id == tagId).FirstOrDefault();
+                // int tagLength = selectRecord.Tag.Length;
+                // int QuotesLength = selectRecord.Quote.Length;
+                // tagInputs.Add(new TagInputModel { Id = tagLength });
+                // QuotesInputs.Add(new QuotesInputModel { Id = QuotesLength });
+                if (selectRecord != null)
+                {
+                    tags = selectRecord;
+                    TagsStatus = tags.Action;
+                    // Populate the tagInputs and QuotesInputs lists with the retrieved values
+                    // Assuming you have similar properties in the Tags class as in the input models
+                    // For tagInputs
+                    var tagList = JsonConvert.DeserializeObject<List<string>>(tags.Tag);
+                    tagInputs.Clear();
+                    foreach (var tag in tagList)
+                    {
+                        tagInputs.Add(new TagInputModel { Id = tagInputs.Count + 1, tags = tag });
+                    }
+                    // For QuotesInputs
+                    var quotesList = JsonConvert.DeserializeObject<List<string>>(tags.Quote);
+                    QuotesInputs.Clear();
+                    foreach (var quote in quotesList)
+                    {
+                        QuotesInputs.Add(new QuotesInputModel { Id = QuotesInputs.Count + 1, quotes = quote });
+                    }
+                    // var quotesList = JsonConvert.DeserializeObject<List<string>>(tags.Quote);
+                    // QuotesInputs.Clear();
+                    // foreach (var quote in quotesList)
+                    // {
+                    //     QuotesInputs.Add(new QuotesInputModel { Id = QuotesInputs.Count + 1, quotes = quote });
+                    // }
+                }
+            }
+        }
+    }
+
+    void AddTag()
+    {
+        int newId = tagInputs.Count > 0 ? tagInputs.Max(t => t.Id) + 1 : 1;
+        tagInputs.Add(new TagInputModel { Id = newId });
+    }
+
+    void AddQuote()
+    {
+        int newId = QuotesInputs.Count > 0 ? QuotesInputs.Max(t => t.Id) + 1 : 1;
+        QuotesInputs.Add(new QuotesInputModel { Id = newId });
+    }
+    void RemoveTag(int id)
+    {
+        // Remove the tag input
+        var tagToRemove = tagInputs.FirstOrDefault(t => t.Id == id);
+        if (tagToRemove != null)
+        {
+            tagInputs.Remove(tagToRemove);
+            return;
+        }
+
+        // Remove the corresponding quote input
+        var quoteToRemove = QuotesInputs.FirstOrDefault(q => q.Id == id);
+        if (quoteToRemove != null)
+        {
+            QuotesInputs.Remove(quoteToRemove);
+            return;
+        }
+    }
+    async Task SubmitForm()
+    {
+        if (string.IsNullOrEmpty(tags.Author))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please enter the Author Name");
+            return;
+        }
+
+        foreach (var tagInput in tagInputs)
+        {
+            if (string.IsNullOrEmpty(tagInput.tags))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Please enter tags for Tag {tagInput.Id}");
+                return;
+            }
+        }
+
+        foreach (var quotesInput in QuotesInputs)
+        {
+            if (string.IsNullOrEmpty(quotesInput.quotes))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Please enter quotes for Quotes {quotesInput.Id}");
+                return;
+            }
+        }
+
+        string tagValues = JsonConvert.SerializeObject(tagInputs.Select(t => t.tags));
+        tags.Tag = tagValues;
+
+        string QuotesValues = JsonConvert.SerializeObject(QuotesInputs.Select(t => t.quotes));
+        tags.Quote = QuotesValues;
+
+        if (ID != "0")
+        {
+            tags.Action = TagsStatus;
+            await TagsService.UpdateTags(tags);
+            await JSRuntime.InvokeVoidAsync("alert", "Quotes updated successfully!");  
+        }
+        if (ID == "0")
+        {
+            tags.Action = "Active";
+            await TagsService.UpdateTags(tags);
+            await JSRuntime.InvokeVoidAsync("alert", "Quotes added successfully!");
+        }
+        tags = new Tags();
+        tagInputs.Clear();
+        QuotesInputs.Clear();
+        tagInputs.Add(new TagInputModel { Id = 1 });
+        QuotesInputs.Add(new QuotesInputModel { Id = 1 });
+        ID = "0";
+    }
+}
